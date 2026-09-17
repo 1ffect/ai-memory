@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 记忆架构技术文档</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-panel: #131b26;
+    --bg-code: #0a1420;
+    --border: #253449;
+    --text: #dbe4f0;
+    --text-soft: #8fa3bd;
+    --accent: #5b9dff;
+    --accent-soft: #1a2c47;
+    --official-fg: #7bdba0;
+    --official-bg: #10301f;
+    --official-border: #1f5237;
+    --leak-fg: #f0b869;
+    --leak-bg: #34260f;
+    --leak-border: #5a4319;
+    --unverified-fg: #93a1b3;
+    --unverified-bg: #1a2331;
+    --unverified-border: #2b3a4d;
+    --sidebar-w: 268px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Noto Sans SC", -apple-system, sans-serif;
+    line-height: 1.7;
+    font-size: 15.5px;
+  }
+
+  code, .mono { font-family: "IBM Plex Mono", monospace; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Layout */
+  .shell {
+    display: flex;
+    min-height: 100vh;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  nav.sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    padding: 28px 20px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  @media (max-width: 900px) {
+    nav.sidebar { display: none; }
+    .shell { display: block; }
+  }
+
+  .sidebar .brand {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--text-soft);
+    margin-bottom: 4px;
+  }
+  .sidebar h1 {
+    font-size: 16px;
+    margin: 0 0 22px;
+    line-height: 1.4;
+  }
+
+  .sidebar-group { margin-bottom: 18px; }
+  .sidebar-group-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--text-soft);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .sidebar a.nav-link {
+    display: block;
+    font-size: 13px;
+    color: var(--text-soft);
+    padding: 5px 0 5px 10px;
+    border-left: 2px solid transparent;
+  }
+  .sidebar a.nav-link:hover {
+    color: var(--text);
+    text-decoration: none;
+    border-left-color: var(--accent);
+  }
+
+  main {
+    flex: 1;
+    padding: 44px 56px 100px;
+    min-width: 0;
+  }
+  @media (max-width: 900px) { main { padding: 32px 20px 80px; } }
+  @media (max-width: 600px) { main { padding: 24px 14px 60px; } }
+
+  .doc-header {
+    margin-bottom: 40px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  .doc-header h1 {
+    font-size: clamp(26px, 3.6vw, 38px);
+    margin: 0 0 12px;
+    line-height: 1.25;
+  }
+  .doc-header p.lede {
+    color: var(--text-soft);
+    max-width: 680px;
+    font-size: 15.5px;
+    margin: 0;
+  }
+
+  /* Tags */
+  .tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid;
+    white-space: nowrap;
+    display: inline-block;
+    line-height: 1.5;
+  }
+  .tag.official { background: var(--official-bg); color: var(--official-fg); border-color: var(--official-border); }
+  .tag.leak { background: var(--leak-bg); color: var(--leak-fg); border-color: var(--leak-border); }
+  .tag.unverified { background: var(--unverified-bg); color: var(--unverified-fg); border-color: var(--unverified-border); }
+
+  /* Methodology callout */
+  .callout {
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    border-left: 3px solid var(--accent);
+    padding: 18px 22px;
+    margin: 0 0 44px;
+    font-size: 14px;
+    color: var(--text-soft);
+  }
+  .callout h3 {
+    font-size: 13.5px;
+    color: var(--text);
+    margin: 0 0 10px;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .callout ul { margin: 8px 0; padding-left: 18px; }
+  .callout li { margin-bottom: 6px; }
+
+  /* Sections */
+  section.module {
+    margin-bottom: 64px;
+    scroll-margin-top: 24px;
+  }
+  .module-eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--text-soft);
+    margin: 0 0 6px;
+  }
+  section.module h2 {
+    font-size: 24px;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  section.module h2 .en {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 14px;
+    color: var(--text-soft);
+    font-weight: 400;
+  }
+  section.module > p.desc {
+    color: var(--text-soft);
+    max-width: 760px;
+    margin: 14px 0 22px;
+  }
+
+  h3.sub {
+    font-size: 16.5px;
+    margin: 30px 0 12px;
+    padding-top: 4px;
+  }
+
+  /* Fact rows */
+  .fact {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .fact:last-child { border-bottom: none; }
+  .fact .fact-tag-col { flex-shrink: 0; padding-top: 2px; }
+  .fact .fact-body { font-size: 14px; color: var(--text); }
+  .fact .fact-body .fact-note { color: var(--text-soft); font-size: 13px; margin-top: 3px; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 28px;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: var(--bg-panel);
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-soft);
+  }
+  td code { font-size: 12.5px; color: var(--accent); }
+
+  /* Code blocks */
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 14px 0 24px;
+  }
+  pre code { color: #cfe0f4; }
+  .comment { color: var(--text-soft); }
+  .kw { color: #f0b869; }
+  .str { color: #7bdba0; }
+
+  /* Directory tree */
+  .tree {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    color: var(--text-soft);
+    margin: 14px 0 24px;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .tree .hl { color: var(--text); }
+
+  /* Stage cards */
+  .stage-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 16px 0 20px;
+  }
+  @media (max-width: 800px) { .stage-grid { grid-template-columns: repeat(2, 1fr); } }
+  .stage-card {
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    padding: 14px;
+  }
+  .stage-card .stage-n {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--leak-fg);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .stage-card p { font-size: 13px; margin: 0; color: var(--text-soft); }
+
+  .gate-row {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 14px 0 20px;
+  }
+  .gate {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13.5px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    padding: 10px 16px;
+  }
+  .gate-op { font-weight: 700; color: var(--text-soft); }
+
+  blockquote {
+    border-left: 3px solid var(--border);
+    margin: 16px 0;
+    padding: 6px 18px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    color: var(--text-soft);
+  }
+
+  /* Aux grid */
+  .aux-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin: 16px 0 8px;
+  }
+  @media (max-width: 700px) { .aux-grid { grid-template-columns: 1fr; } }
+  .aux-card {
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    padding: 18px;
+  }
+  .aux-card h4 {
+    margin: 0 0 8px;
+    font-size: 14.5px;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .aux-card p { color: var(--text-soft); font-size: 13.5px; margin: 0 0 10px; }
+
+  /* References */
+  .ref-list { list-style: none; margin: 0; padding: 0; }
+  .ref-list li {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .ref-list li:last-child { border-bottom: none; }
+  .ref-list .ref-title { color: var(--text); display: block; margin-bottom: 3px; }
+  .ref-list .ref-meta { color: var(--text-soft); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+
+  footer.doc-footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-soft);
+    font-size: 12.5px;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <nav class="sidebar">
+    <p class="brand">CLAUDE CODE // ARCHITECTURE DOCS</p>
+    <h1>记忆机制技术文档</h1>
+
+    <div class="sidebar-group">
+      <p class="sidebar-group-label">概览</p>
+      <a class="nav-link" href="#methodology">来源与方法论</a>
+    </div>
+
+    <div class="sidebar-group">
+      <p class="sidebar-group-label">六大模块</p>
+      <a class="nav-link" href="#m1">01 指令记忆 · CLAUDE.md</a>
+      <a class="nav-link" href="#m2">02 短期记忆 · 会话</a>
+      <a class="nav-link" href="#m3">03 工作记忆 · 任务</a>
+      <a class="nav-link" href="#m4">04 长期记忆 · memdir</a>
+      <a class="nav-link" href="#m5">05 摘要记忆 · 压缩</a>
+      <a class="nav-link" href="#m6">06 休眠重构 · AutoDream</a>
+    </div>
+
+    <div class="sidebar-group">
+      <p class="sidebar-group-label">附属组件</p>
+      <a class="nav-link" href="#aux">团队同步 / KAIROS / 权限</a>
+    </div>
+
+    <div class="sidebar-group">
+      <p class="sidebar-group-label">附录</p>
+      <a class="nav-link" href="#matrix">对照总表</a>
+      <a class="nav-link" href="#refs">参考来源</a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="doc-header">
+      <p class="doc-kicker">TECHNICAL REFERENCE · v1.1</p>
+      <h1>Claude Code 记忆架构：六模块详解</h1>
+      <p class="lede">整理 Claude Code 跨会话学习机制的六个模块，覆盖存储位置、触发条件、数据结构与已知限制。每条信息均标注来源。</p>
+    </div>
+
+    <div class="callout" id="methodology">
+      <h3>📎 来源与方法论</h3>
+      <ul>
+        <li><span class="tag official">官方文档</span> — 来自 Anthropic 官方文档站 <code>code.claude.com/docs/en/memory</code>，可作为技术依据直接引用。</li>
+        <li><span class="tag leak">泄露代码分析</span> — 2026年3月31日，Claude Code 的 npm 发布包中暴露了一个 source map 文件，导致完整 TypeScript 源码泄露；此事被多家媒体公开报道。此后第三方研究者对泄露代码进行了分析并撰写文章，整理了其中被多篇独立文章复述、彼此印证的部分。<strong>这部分内容未经 Anthropic 官方确认</strong>。</li>
+        <li><span class="tag unverified">未经证实</span> — 概念上合理、或散见于单一来源，但本文档整理过程中未能找到可交叉核实依据的细节。</li>
+      </ul>
+    </div>
+
+    <!-- MODULE 1 -->
+    <section class="module" id="m1">
+      <p class="module-eyebrow">MODULE 01</p>
+      <h2>指令记忆 <span class="en">Instructional Memory — CLAUDE.md</span></h2>
+      <p class="desc">用户手写的持久化指令文件。四个作用域，按优先级从低到高依次加载并拼接进上下文；三种内容扩展机制控制指令如何被组织与按需引入。</p>
+
+      <h3 class="sub">作用域与优先级 <span class="tag official">官方</span></h3>
+      <table>
+        <tr><th>作用域</th><th>路径</th><th>用途</th><th>共享范围</th></tr>
+        <tr><td>managed 组织策略</td><td><code>/etc/claude-code/CLAUDE.md</code>（Linux/WSL）</td><td>组织级强制规范</td><td>机器上所有用户</td></tr>
+        <tr><td>user 用户级</td><td><code>~/.claude/CLAUDE.md</code></td><td>个人跨项目偏好</td><td>仅本人（所有项目）</td></tr>
+        <tr><td>project 项目级</td><td><code>./CLAUDE.md</code> 或 <code>./.claude/CLAUDE.md</code></td><td>团队共享的项目规范</td><td>团队成员（经版本控制）</td></tr>
+        <tr><td>local 本地个人</td><td><code>./CLAUDE.local.md</code></td><td>个人项目级偏好，建议加入 .gitignore</td><td>仅本人（当前项目）</td></tr>
+      </table>
+      <p style="color:var(--text-soft); font-size:13.5px;">加载顺序 = 优先级：从文件系统根目录到工作目录逐层拼接，同一目录下 <code>CLAUDE.local.md</code> 在 <code>CLAUDE.md</code> 之后追加。越晚加载的内容在上下文中越靠后，遵从优先级也越高。<span class="tag official">官方</span></p>
+
+      <h3 class="sub">三种扩展机制 <span class="tag official">官方</span></h3>
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag official">官方</span></div>
+        <div class="fact-body">
+          <strong>递归 include</strong> — 使用 <code>@path/to/file</code> 语法导入其他文件，导入内容在启动时展开并加载；支持相对/绝对路径，最大递归深度 4 层。
+          <div class="fact-note">代码块或反引号内的 <code>@</code> 不会被当作导入语法解析。</div>
+        </div>
+      </div>
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag official">官方</span></div>
+        <div class="fact-body">
+          <strong>条件协议</strong> — <code>.claude/rules/</code> 目录下的规则文件可用 YAML frontmatter 中的 <code>paths</code> 字段限定生效范围，仅当 Claude 读取匹配路径的文件时才会加载该规则。
+        </div>
+      </div>
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag official">官方</span></div>
+        <div class="fact-body">
+          <strong>嵌套挂载</strong> — 工作目录及其上层目录中的 CLAUDE.md 在启动时加载；子目录中的 CLAUDE.md 不会预加载，而是在 Claude 实际读取该子目录下的文件时按需挂载。
+        </div>
+      </div>
+
+      <h3 class="sub">路径作用域规则示例</h3>
+      <pre><code><span class="comment">---</span>
+<span class="kw">paths</span>:
+  - <span class="str">"src/api/**/*.ts"</span>
+<span class="comment">---</span>
+
+<span class="comment"># API Development Rules</span>
+- All API endpoints must include input validation
+- Use the standard error response format</code></pre>
+
+      <h3 class="sub">双通道注入模型 <span class="tag unverified">非官方命名，功能层面成立</span></h3>
+      <p style="color:var(--text-soft); font-size:14px;">功能上可以理解为两条并行通道：<strong>通道 A</strong>（用户书写的 CLAUDE.md 指令层，作为系统提示之后的用户消息注入）与<strong>通道 B</strong>（系统自动维护的 memdir 行为规范层，见 Module 04）。这一命名并非 Anthropic 官方术语，但准确描述了两条独立数据管线的关系。</p>
+    </section>
+
+    <!-- MODULE 2 -->
+    <section class="module" id="m2">
+      <p class="module-eyebrow">MODULE 02</p>
+      <h2>短期记忆 <span class="en">Short-Term Memory — Conversation</span></h2>
+      <p class="desc">当前会话的实时上下文窗口：完整的对话轮次、工具调用与工具返回结果。<span class="tag unverified">概念性描述</span></p>
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag unverified">概念性</span></div>
+        <div class="fact-body">
+          这是 Working Memory（任务）、Summary Memory（压缩）与 Long-Term Memory 提取三者共同的原始素材来源；本身不具备跨会话持久性，会话结束或被压缩后即不再以原始形式存在。
+        </div>
+      </div>
+    </section>
+
+    <!-- MODULE 3 -->
+    <section class="module" id="m3">
+      <p class="module-eyebrow">MODULE 03</p>
+      <h2>工作记忆 <span class="en">Working Memory — Tasks</span></h2>
+      <p class="desc">会话内的任务管理层，用于跟踪多步骤计划的执行状态。</p>
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag leak">泄露代码</span></div>
+        <div class="fact-body">
+          对应泄露源码中的工具注册表条目：<code>TaskCreate</code> / <code>TaskGet</code> / <code>TaskList</code> / <code>TaskUpdate</code> / <code>TaskStopTool</code>。用于维护类似清单结构的任务状态，服务于当前会话的执行计划。
+          <div class="fact-note">不写入 memdir，属于会话内瞬时状态，区别于跨会话持久化的长期记忆。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODULE 4 -->
+    <section class="module" id="m4">
+      <p class="module-eyebrow">MODULE 04</p>
+      <h2>长期记忆 <span class="en">Long-Term Memory — memdir</span></h2>
+      <p class="desc">跨会话持久化的核心层，也是六模块中官方文档覆盖最完整的部分。</p>
+
+      <h3 class="sub">存储位置与目录结构 <span class="tag official">官方</span></h3>
+      <div class="tree">~/.claude/projects/&lt;project&gt;/memory/
+├── <span class="hl">MEMORY.md</span>           <span class="comment"># 索引文件，每条记忆一行，每次会话开始时加载</span>
+├── user_role.md        <span class="comment"># 单条记忆：用户角色/偏好</span>
+├── feedback_testing.md <span class="comment"># 单条记忆：某次纠正或确认的做法</span>
+└── ...                 <span class="comment"># 其他主题文件，按需读取，不预加载</span></div>
+      <p style="color:var(--text-soft); font-size:13.5px;"><code>&lt;project&gt;</code> 由 git 仓库推导，因此同一仓库的所有 worktree 与子目录共享同一个 memory 目录；不在 git 仓库内时使用项目根目录代替。<span class="tag official">官方</span></p>
+
+      <h3 class="sub">四种记忆类型 <span class="tag official">官方</span></h3>
+      <table>
+        <tr><th>type</th><th>内容</th></tr>
+        <tr><td><code>user</code></td><td>用户的角色、专业背景、工作偏好</td></tr>
+        <tr><td><code>feedback</code></td><td>用户给出的纠正意见，以及被确认有效的做法</td></tr>
+        <tr><td><code>project</code></td><td>无法从代码或 git 历史推导的进行中工作、截止日期、决策</td></tr>
+        <tr><td><code>reference</code></td><td>指向项目之外信息的指针，例如工单系统、仪表盘</td></tr>
+      </table>
+
+      <h3 class="sub">显式排除规则（信噪比控制）<span class="tag official">官方</span></h3>
+      <p style="color:var(--text-soft); font-size:14px;">Claude 会跳过任何可以从代码库直接推导的内容 —— 架构、文件路径、可通过 git 历史还原的调试修复 —— 以及 CLAUDE.md 中已经写明的内容。这是 memdir 保持高信噪比的核心机制：它只存放"从代码本身读不出来"的信息。</p>
+
+      <h3 class="sub">MEMORY.md 大小限制 <span class="tag official">官方</span></h3>
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag official">官方</span></div>
+        <div class="fact-body">
+          每次会话开始时加载 MEMORY.md 的前 200 行或前 25KB（以先达到者为准）。超出部分不会被加载。写入后系统会检测文件是否接近或超出限制：接近限制时提示 Claude 精简（每条记忆一行、把细节移到主题文件、合并或删除过时条目）；超出限制时写入仍会成功，但系统会返回错误要求 Claude 重写索引，因为超出部分在下次加载时会被丢弃。
+        </div>
+      </div>
+
+      <h3 class="sub">检索机制 <span class="tag leak">泄露代码分析</span></h3>
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag leak">泄露代码分析</span></div>
+        <div class="fact-body">
+          主题文件不做向量嵌入检索。据分析文章披露的实现逻辑：系统扫描 memory 目录下所有非 MEMORY.md 的 <code>.md</code> 文件（上限 200 个），读取每个文件的前约 30 行提取 frontmatter 元数据，按修改时间排序后，将这些文件头交给一次独立的模型调用，由模型判断"哪些记忆明显对当前查询有用"（最多返回 5 个文件名），再读取被选中的主题文件全文。
+          <div class="fact-note">即基于 AI 语义判断而非相似度检索/embedding，这也是为什么记忆标题的措辞需要覆盖未来提问可能使用的词汇，否则可能检索不到。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODULE 5 -->
+    <section class="module" id="m5">
+      <p class="module-eyebrow">MODULE 05</p>
+      <h2>摘要记忆 <span class="en">Summary Memory — Compression</span></h2>
+      <p class="desc">对会话本身的压缩机制，用于回收上下文窗口空间，与 memdir 的持久化记忆是两套独立系统。</p>
+
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag leak">泄露代码</span></div>
+        <div class="fact-body">
+          对应泄露源码中的 <code>compact/</code> 模块。据分析文章描述，压缩存在分级：<strong>MicroCompact</strong>（轻量级）、<strong>AutoCompact</strong>（定期触发）、<strong>Full Compact</strong>（上下文压力较大时的完整压缩）。
+          <div class="fact-note"><span class="tag unverified">分级细节未证实</span> 三级压缩的具体触发阈值与实现差异未找到独立可核实来源，仅为多篇文章复述的名称。</div>
+        </div>
+      </div>
+
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag official">官方</span></div>
+        <div class="fact-body">
+          <strong>压缩后的持久化恢复</strong>：项目根目录的 CLAUDE.md 在 <code>/compact</code> 之后会被重新从磁盘读取并重新注入会话；子目录中的嵌套 CLAUDE.md 与带 <code>paths:</code> 的规则则在 Claude 之后重新读取匹配文件时才会重新加载。因此"压缩后指令丢失"通常是因为该指令只在对话中口头提过、位于尚未重新触发加载的嵌套文件中，或是一条尚未匹配到新文件的路径规则。
+        </div>
+      </div>
+    </section>
+
+    <!-- MODULE 6 -->
+    <section class="module" id="m6">
+      <p class="module-eyebrow">MODULE 06</p>
+      <h2>休眠重构 <span class="en">Dormant Restructuring — AutoDream</span></h2>
+      <p class="desc">后台离线整理机制，由主会话 fork 出的子代理执行，用于周期性梳理 memdir 内容。本模块内容主要来自泄露代码分析，未经 Anthropic 官方确认。</p>
+
+      <h3 class="sub">触发条件 — 双重门控 <span class="tag leak">泄露代码分析</span></h3>
+      <div class="gate-row">
+        <div class="gate">距上次整理 &gt; 24 小时</div>
+        <div class="gate-op">AND</div>
+        <div class="gate">累计 ≥ 5 个新会话</div>
+      </div>
+      <p style="color:var(--text-soft); font-size:13.5px;">两个条件需同时满足才会触发，避免整理过程过于频繁地打断使用。</p>
+
+      <h3 class="sub">四阶段流程</h3>
+      <div class="stage-grid">
+        <div class="stage-card">
+          <span class="stage-n">STAGE 1 <span class="tag unverified">标签未证实</span></span>
+          <p>定向探索：回顾近期会话记录与已有记忆文件，建立整理范围。</p>
+        </div>
+        <div class="stage-card">
+          <span class="stage-n">STAGE 2 <span class="tag unverified">标签未证实</span></span>
+          <p>信息收集：从会话记录中提炼可能值得写入的新事实。</p>
+        </div>
+        <div class="stage-card">
+          <span class="stage-n">STAGE 3 <span class="tag leak">泄露代码</span></span>
+          <p>整合 Consolidate：写入记忆文件，将相对日期转换为绝对日期，删除相互矛盾的旧条目。</p>
+        </div>
+        <div class="stage-card">
+          <span class="stage-n">STAGE 4 <span class="tag leak">泄露代码</span></span>
+          <p>剪枝 Prune：将 MEMORY.md 控制在 200 行 / 约 25KB 以内。</p>
+        </div>
+      </div>
+      <p style="color:var(--text-soft); font-size:13px;">阶段 1、2 的具体名称为本文档基于多篇分析文章的整体流程描述归纳整理，实际源码中的确切命名未经逐字核实；阶段 3、4 的行为描述在多篇独立文章中一致出现，可信度相对更高。</p>
+
+      <h3 class="sub">权限与身份 <span class="tag leak">泄露代码分析</span></h3>
+      <div class="fact">
+        <div class="fact-tag-col"><span class="tag leak">泄露代码分析</span></div>
+        <div class="fact-body">
+          整理代理拥有<strong>只读 shell 权限</strong> —— 可以分析项目当前状态以核对记忆是否仍然准确，但无法修改项目文件，只能读写 memory 目录本身。
+        </div>
+      </div>
+      <p style="color:var(--text-soft); font-size:13.5px;">据分析文章引用，整理代理的系统提示词开篇即将任务定义为一次"梦境"式的反思过程：</p>
+      <blockquote>"You are performing a dream — a reflective pass over your memory files."</blockquote>
+      <p style="color:var(--text-soft); font-size:12.5px;">（该引用来自第三方对泄露代码的分析文章，非 Anthropic 官方公开材料，一字不差的准确性未经独立核实。）</p>
+    </section>
+
+    <!-- AUX -->
+    <section class="module" id="aux">
+      <p class="module-eyebrow">附属组件</p>
+      <h2>与六模块并行运作的组件</h2>
+      <p class="desc">以下组件不完全归入六模块框架，但属于同一套记忆/上下文系统的组成部分。</p>
+
+      <div class="aux-grid">
+        <div class="aux-card">
+          <h4>teamMemorySync <span class="tag leak">模块名确认</span></h4>
+          <p>泄露源码目录结构中确认存在 <code>teamMemorySync/</code> 模块。据相关描述，memory 目录下存在一个可选的 <code>team/</code> 子目录，用于存放团队共享的知识，与个人记忆分开存放。</p>
+          <p style="color:var(--unverified-fg);">同步策略（如是否有服务器端权威副本）、冲突解决机制等具体实现细节 <span class="tag unverified">未证实</span>。</p>
+        </div>
+        <div class="aux-card">
+          <h4>子代理持久记忆 <span class="tag official">官方文档确认</span></h4>
+          <p>子代理可通过配置中的 <code>memory</code> 字段维护自己独立、隔离的记忆目录，与主会话的 memdir 分开。主会话的 auto memory 默认不会加载进子代理。</p>
+          <p>例外：<code>fork</code> 类型的子代理会完整继承父会话的上下文与系统提示，因此也继承父会话已加载的记忆内容。</p>
+        </div>
+        <div class="aux-card">
+          <h4>KAIROS <span class="tag leak">泄露代码</span> <span class="tag unverified">未发布</span></h4>
+          <p>一个尚未发布的常驻后台特性标志，据报道在泄露源码中出现超过 150 次。设想中会让 Claude Code 从"被调用时才运行"转变为持续在后台观察项目、主动记录观察/决策/操作的常驻助手模式。截至本文整理时，未出现在任何公开发布版本中。</p>
+        </div>
+        <div class="aux-card">
+          <h4>extractMemories 自动提取 <span class="tag leak">模块名确认</span></h4>
+          <p>会话完成后由 fork 出的子代理在后台运行，读取会话记录并写入 memdir 记忆文件。这与 AutoDream 是两个不同的写入者——一个在会话结束时即时运行，另一个按 24 小时/5 会话的双重门控周期性运行。</p>
+          <p style="color:var(--unverified-fg);">两者之间是否存在读写互斥、并发协调机制 <span class="tag unverified">未证实</span>。</p>
+        </div>
+        <div class="aux-card">
+          <h4>权限系统 <span class="tag leak">泄露代码</span></h4>
+          <p>每次工具调用都会经过权限检查层，根据配置的权限模式（<code>default</code> / <code>plan</code> / <code>bypassPermissions</code> / <code>auto</code> 等）自动放行、拒绝或向用户请求确认。</p>
+          <p style="color:var(--unverified-fg);">是否存在专门针对记忆文件的"路径安全防护"或"敏感数据审查"独立子系统 <span class="tag unverified">未找到具体实现依据</span>，暂列为推测性描述。</p>
+        </div>
+        <div class="aux-card">
+          <h4>Feature Flag 基础设施 <span class="tag leak">泄露代码</span></h4>
+          <p>基于 GrowthBook 的功能开关系统，配合 Bun 运行时的编译期死代码消除（dead code elimination），使得像 KAIROS 这样尚未上线的功能可以存在于源码仓库中，却不会被编译进面向用户的生产构建。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MATRIX -->
+    <section class="module" id="matrix">
+      <p class="module-eyebrow">附录 A</p>
+      <h2>六模块对照总表</h2>
+      <table>
+        <tr><th>模块</th><th>写入者</th><th>存储位置</th><th>加载时机</th><th>来源等级</th></tr>
+        <tr><td>01 指令记忆</td><td>用户</td><td>CLAUDE.md 系列文件</td><td>每次会话启动 + 按需挂载子目录</td><td><span class="tag official">官方</span></td></tr>
+        <tr><td>02 短期记忆</td><td>—（原始上下文）</td><td>内存中的上下文窗口</td><td>会话进行期间</td><td><span class="tag unverified">概念性</span></td></tr>
+        <tr><td>03 工作记忆</td><td>主代理</td><td>会话内任务状态</td><td>会话进行期间</td><td><span class="tag leak">泄露代码</span></td></tr>
+        <tr><td>04 长期记忆</td><td>主代理 + extractMemories 子代理</td><td><code>~/.claude/projects/&lt;project&gt;/memory/</code></td><td>每次会话启动（MEMORY.md 前200行/25KB）</td><td><span class="tag official">官方</span></td></tr>
+        <tr><td>05 摘要记忆</td><td>compact 模块</td><td>压缩后的会话摘要（非独立文件）</td><td>上下文压力触发 / /compact 命令</td><td><span class="tag leak">泄露代码</span></td></tr>
+        <tr><td>06 休眠重构</td><td>AutoDream 子代理</td><td>整理 memdir 现有文件</td><td>&gt;24h 且 ≥5 会话（双重门控）</td><td><span class="tag leak">泄露代码分析</span></td></tr>
+      </table>
+    </section>
+
+    <!-- REFERENCES -->
+    <section class="module" id="refs">
+      <p class="module-eyebrow">附录 B</p>
+      <h2>参考来源</h2>
+      <ul class="ref-list">
+        <li>
+          <span class="ref-title">How Claude remembers your project — Claude Code Docs <span class="tag official">官方</span></span>
+          <span class="ref-meta"><a href="https://code.claude.com/docs/en/memory" target="_blank" rel="noopener">code.claude.com/docs/en/memory</a></span>
+        </li>
+        <li>
+          <span class="ref-title">How Memory works in Claude Code Harness (Medium) <span class="tag leak">分析文章</span></span>
+          <span class="ref-meta"><a href="https://medium.com/@kanavanand8/how-memory-works-in-claude-code-harness-d8b242c114c2" target="_blank" rel="noopener">medium.com/@kanavanand8</a></span>
+        </li>
+        <li>
+          <span class="ref-title">Claude Code Memory System Explained: 4 Layers, 5 Limits, and a Fix (Milvus Blog) <span class="tag leak">分析文章</span></span>
+          <span class="ref-meta"><a href="https://milvus.io/blog/claude-code-memory-memsearch.md" target="_blank" rel="noopener">milvus.io/blog</a></span>
+        </li>
+        <li>
+          <span class="ref-title">How Does Claude Code Work? A Source Map Leak Shows It in Detail (innFactory) <span class="tag leak">分析文章</span></span>
+          <span class="ref-meta"><a href="https://innfactory.ai/en/blog/how-does-claude-code-work-source-map-leak" target="_blank" rel="noopener">innfactory.ai/blog</a></span>
+        </li>
+        <li>
+          <span class="ref-title">What is Claude Code AutoDream Memory Consolidation (MindStudio) <span class="tag leak">分析文章</span></span>
+          <span class="ref-meta"><a href="https://www.mindstudio.ai/blog/what-is-claude-code-autodream-memory-consolidation-3" target="_blank" rel="noopener">mindstudio.ai/blog</a></span>
+        </li>
+        <li>
+          <span class="ref-title">Claude Code Memory: How Automatic Memory Extraction Actually Works (DEV Community) <span class="tag leak">分析文章</span></span>
+          <span class="ref-meta"><a href="https://dev.to/thebrierfox/claude-code-memory-how-automatic-memory-extraction-actually-works-1bmg" target="_blank" rel="noopener">dev.to/thebrierfox</a></span>
+        </li>
+      </ul>
+    </section>
+
+    <footer class="doc-footer">
+      本文档由第三方基于公开资料整理，用于内部技术沟通参考。"泄露代码分析"部分源自 2026年3月31日 Claude Code 源码经由 npm 注册表暴露的 source map 文件而流出一事，相关分析文章对该泄露代码的解读未经 Anthropic 官方确认，且泄露源码本身属于未经授权披露的专有代码。对外发布或用于正式技术决策前，建议以 Anthropic 官方文档为准，并保留本文档中的来源标签。
+    </footer>
+
+  </main>
+</div>
+</body>
+</html>
