@@ -356,6 +356,241 @@
     color: var(--text-soft);
     font-size: 12.5px;
   }
+
+  /* Interactive architecture atlas */
+  .visual-board {
+    border: 1px solid var(--border);
+    background:
+      linear-gradient(rgba(91, 157, 255, .035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(91, 157, 255, .035) 1px, transparent 1px),
+      var(--bg-code);
+    background-size: 28px 28px;
+    padding: 22px;
+    margin: 18px 0 28px;
+    overflow: hidden;
+  }
+  .visual-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .visual-head h3 { margin: 0 0 4px; font-size: 17px; }
+  .visual-head p { margin: 0; color: var(--text-soft); font-size: 13px; }
+  .visual-label {
+    flex-shrink: 0;
+    color: var(--accent);
+    font: 11px "IBM Plex Mono", monospace;
+    letter-spacing: .06em;
+  }
+  .loop-tabs, .flow-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 18px;
+  }
+  .loop-tab, .flow-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text-soft);
+    padding: 8px 12px;
+    font: 12px "IBM Plex Mono", monospace;
+    cursor: pointer;
+  }
+  .loop-tab:hover, .flow-btn:hover { color: var(--text); border-color: var(--accent); }
+  .loop-tab[aria-pressed="true"], .flow-btn.primary {
+    color: var(--text);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .loop-map {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(92px, 1fr));
+    gap: 10px;
+    position: relative;
+  }
+  .memory-node {
+    min-height: 108px;
+    border: 1px solid var(--border);
+    background: rgba(19, 27, 38, .92);
+    padding: 12px;
+    position: relative;
+    transition: border-color .25s ease, background .25s ease, transform .25s ease, opacity .25s ease;
+  }
+  .memory-node::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: -11px;
+    width: 11px;
+    border-top: 1px solid var(--border);
+  }
+  .memory-node:last-child::after { display: none; }
+  .memory-node .node-n {
+    display: block;
+    color: var(--text-soft);
+    font: 10px "IBM Plex Mono", monospace;
+    margin-bottom: 7px;
+  }
+  .memory-node strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .memory-node small { display: block; color: var(--text-soft); font-size: 11.5px; line-height: 1.5; }
+  .memory-node.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    transform: translateY(-3px);
+  }
+  .memory-node.active::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border: 1px solid var(--accent);
+    animation: node-pulse 1.8s ease-out infinite;
+    pointer-events: none;
+  }
+  .memory-node.dim { opacity: .38; }
+  .loop-route {
+    margin-top: 16px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  .loop-route-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 34px;
+  }
+  .route-stop {
+    color: var(--text);
+    font: 12px "IBM Plex Mono", monospace;
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 2px;
+  }
+  .route-arrow { color: var(--accent); animation: arrow-pulse 1.2s ease-in-out infinite; }
+  .loop-explain { margin: 10px 0 0; color: var(--text-soft); font-size: 13px; }
+
+  .injection-map {
+    display: grid;
+    grid-template-columns: 1fr 54px minmax(210px, .8fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+  .tracks { display: grid; gap: 12px; }
+  .track {
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .track::after {
+    content: "";
+    position: absolute;
+    height: 2px;
+    width: 42px;
+    right: -10px;
+    bottom: 13px;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    animation: packet 2.4s linear infinite;
+  }
+  .track b { display: block; font-size: 13px; }
+  .track span { color: var(--text-soft); font-size: 12px; }
+  .merge-arrow {
+    display: grid;
+    place-items: center;
+    color: var(--accent);
+    font-size: 26px;
+  }
+  .context-box {
+    border: 1px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .context-box strong { font-family: "IBM Plex Mono", monospace; }
+  .context-box span { color: var(--text-soft); font-size: 12px; margin-top: 5px; }
+
+  .lifecycle {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .life-step {
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    padding: 11px;
+    min-height: 92px;
+    transition: .2s ease;
+    position: relative;
+  }
+  .life-step:not(:last-child)::after {
+    content: "›";
+    color: var(--text-soft);
+    position: absolute;
+    right: -7px;
+    top: 31px;
+    z-index: 2;
+  }
+  .life-step b { display: block; font-size: 12px; margin-bottom: 5px; }
+  .life-step span { display: block; color: var(--text-soft); font-size: 11.5px; line-height: 1.45; }
+  .life-step.active {
+    border-color: var(--official-fg);
+    background: var(--official-bg);
+    transform: translateY(-3px);
+  }
+  .flow-status {
+    min-height: 44px;
+    border-left: 3px solid var(--official-fg);
+    padding: 8px 12px;
+    background: var(--bg-panel);
+    color: var(--text-soft);
+    font-size: 13px;
+  }
+  .flow-status strong { color: var(--text); }
+
+  .timescale {
+    display: grid;
+    grid-template-columns: 110px repeat(4, 1fr);
+    border: 1px solid var(--border);
+    margin: 18px 0 28px;
+  }
+  .timescale > div { padding: 10px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 12px; }
+  .timescale > div:nth-child(5n) { border-right: 0; }
+  .timescale .scale-head { color: var(--text-soft); font: 10.5px "IBM Plex Mono", monospace; background: var(--bg-panel); }
+  .timescale .scale-name { color: var(--text); font-weight: 600; }
+  .timescale .occupied { background: var(--accent-soft); color: var(--text); }
+  .timescale .maintained { background: var(--leak-bg); color: var(--leak-fg); }
+
+  @keyframes node-pulse { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(1.06); } }
+  @keyframes arrow-pulse { 50% { transform: translateX(3px); opacity: .55; } }
+  @keyframes packet { from { transform: translateX(-340px); } to { transform: translateX(80px); } }
+
+  @media (max-width: 880px) {
+    .loop-map { grid-template-columns: repeat(3, 1fr); }
+    .memory-node:nth-child(3)::after { display: none; }
+    .lifecycle { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 620px) {
+    .visual-board { padding: 16px; }
+    .visual-head, .injection-map { display: block; }
+    .visual-label { margin-top: 8px; }
+    .loop-map { grid-template-columns: 1fr 1fr; }
+    .memory-node:nth-child(2n)::after { display: none; }
+    .merge-arrow { transform: rotate(90deg); min-height: 46px; }
+    .context-box { min-height: 110px; }
+    .lifecycle { grid-template-columns: 1fr 1fr; }
+    .timescale { grid-template-columns: 92px repeat(4, 96px); width: 100%; max-width: 100%; overflow-x: auto; }
+    table { display: block; width: 100%; max-width: 100%; overflow-x: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  }
 </style>
 </head>
 <body>
@@ -369,6 +604,7 @@
     <div class="sidebar-group">
       <p class="sidebar-group-label">概览</p>
       <a class="nav-link" href="#methodology">来源与方法论</a>
+      <a class="nav-link" href="#atlas">动态系统总览</a>
     </div>
 
     <div class="sidebar-group">
@@ -395,7 +631,7 @@
 
   <main>
     <div class="doc-header">
-      <p class="doc-kicker">TECHNICAL REFERENCE · v1.1</p>
+      <p class="doc-kicker">TECHNICAL REFERENCE · v1.2</p>
       <h1>Claude Code 记忆架构：六模块详解</h1>
       <p class="lede">整理 Claude Code 跨会话学习机制的六个模块，覆盖存储位置、触发条件、数据结构与已知限制。每条信息均标注来源。</p>
     </div>
@@ -408,6 +644,84 @@
         <li><span class="tag unverified">未经证实</span> — 概念上合理、或散见于单一来源，但本文档整理过程中未能找到可交叉核实依据的细节。</li>
       </ul>
     </div>
+
+    <section class="module" id="atlas">
+      <p class="module-eyebrow">SYSTEM ATLAS / INTERACTIVE</p>
+      <h2>六类机制，三个闭环</h2>
+      <p class="desc">六类记忆并不是彼此孤立的容器。它们组合成任务连续性、跨会话积累和记忆维护三个循环；指令记忆持续约束三个循环怎样运行。</p>
+
+      <div class="visual-board">
+        <div class="visual-head">
+          <div><h3>闭环导航图</h3><p>切换闭环，观察本轮真正参与的模块和信息路径。</p></div>
+          <span class="visual-label">LIVE MAP · 01</span>
+        </div>
+        <div class="loop-tabs" role="group" aria-label="选择闭环">
+          <button class="loop-tab" type="button" data-loop="continuity" aria-pressed="true">01 任务连续性</button>
+          <button class="loop-tab" type="button" data-loop="learning" aria-pressed="false">02 跨会话积累</button>
+          <button class="loop-tab" type="button" data-loop="maintenance" aria-pressed="false">03 记忆维护</button>
+        </div>
+        <div class="loop-map" id="loop-map">
+          <div class="memory-node" data-module="instruction"><span class="node-n">01 / RULES</span><strong>指令记忆</strong><small>定义执行与记忆管理规则</small></div>
+          <div class="memory-node active" data-module="short"><span class="node-n">02 / CONTEXT</span><strong>短期记忆</strong><small>对话、文件与工具结果</small></div>
+          <div class="memory-node active" data-module="working"><span class="node-n">03 / TASK</span><strong>工作记忆</strong><small>目标、计划、进度、下一步</small></div>
+          <div class="memory-node" data-module="long"><span class="node-n">04 / MEMDIR</span><strong>长期记忆</strong><small>索引与按需主题文件</small></div>
+          <div class="memory-node active" data-module="summary"><span class="node-n">05 / COMPACT</span><strong>摘要记忆</strong><small>压缩后保持任务可继续</small></div>
+          <div class="memory-node" data-module="dream"><span class="node-n">06 / DREAM</span><strong>休眠重塑</strong><small>合并、纠错、去重、修剪</small></div>
+        </div>
+        <div class="loop-route" aria-live="polite">
+          <div class="loop-route-line" id="loop-route"></div>
+          <p class="loop-explain" id="loop-explain"></p>
+        </div>
+      </div>
+
+      <div class="visual-board">
+        <div class="visual-head">
+          <div><h3>双轨注入</h3><p>把“记住什么”与“怎样记忆”分开维护，再在当前上下文中汇合。</p></div>
+          <span class="visual-label">INJECTION · 02</span>
+        </div>
+        <div class="injection-map">
+          <div class="tracks">
+            <div class="track"><b>内容轨 · What</b><span>CLAUDE.md、MEMORY.md、召回文件、Session Memory、Rules / Skills</span></div>
+            <div class="track"><b>行为轨 · How</b><span>保存标准、四类分类、召回条件、新鲜度验证、遗忘与修剪规则</span></div>
+          </div>
+          <div class="merge-arrow" aria-hidden="true">→</div>
+          <div class="context-box"><strong>CURRENT CONTEXT</strong><span>主模型只接收当前任务真正需要的规则、状态与长期背景。</span></div>
+        </div>
+      </div>
+
+      <div class="visual-board">
+        <div class="visual-head">
+          <div><h3>一条记忆的生命周期</h3><p>逐步播放从交互信号到未来召回，再到周期性整理的全过程。</p></div>
+          <span class="visual-label">LIFECYCLE · 03</span>
+        </div>
+        <div class="flow-controls">
+          <button class="flow-btn primary" type="button" id="life-play">播放</button>
+          <button class="flow-btn" type="button" id="life-prev">上一步</button>
+          <button class="flow-btn" type="button" id="life-next">下一步</button>
+          <button class="flow-btn" type="button" id="life-reset">重置</button>
+        </div>
+        <div class="lifecycle" id="lifecycle">
+          <div class="life-step active"><b>1 · 交互</b><span>用户纠正、确认或补充背景</span></div>
+          <div class="life-step"><b>2 · 判断</b><span>是否跨会话有用，是否可从代码推导</span></div>
+          <div class="life-step"><b>3 · 提取</b><span>后台代理读取已有记忆并避免重复</span></div>
+          <div class="life-step"><b>4 · 写入</b><span>更新 topic 文件和 MEMORY.md 索引</span></div>
+          <div class="life-step"><b>5 · 召回</b><span>扫描描述、筛选少量相关正文</span></div>
+          <div class="life-step"><b>6 · 重塑</b><span>AutoDream 合并、纠错、修剪索引</span></div>
+        </div>
+        <div class="flow-status" id="life-status" aria-live="polite"></div>
+      </div>
+
+      <h3 class="sub">六类机制的时间尺度</h3>
+      <div class="timescale" aria-label="六类机制时间尺度矩阵">
+        <div class="scale-head">机制</div><div class="scale-head">每次请求</div><div class="scale-head">当前任务</div><div class="scale-head">跨会话</div><div class="scale-head">后台周期</div>
+        <div class="scale-name">指令记忆</div><div class="occupied">持续约束</div><div class="occupied">持续约束</div><div class="occupied">持久规则</div><div>—</div>
+        <div class="scale-name">短期记忆</div><div class="occupied">完整上下文</div><div class="occupied">逐轮增长</div><div>—</div><div>—</div>
+        <div class="scale-name">工作记忆</div><div>—</div><div class="occupied">任务状态</div><div>通常不保留</div><div>—</div>
+        <div class="scale-name">长期记忆</div><div>索引 / 召回</div><div>按需读写</div><div class="occupied">持久文件</div><div>—</div>
+        <div class="scale-name">摘要记忆</div><div>压力触发</div><div class="occupied">任务交接</div><div>随会话恢复</div><div>—</div>
+        <div class="scale-name">休眠重塑</div><div>—</div><div>—</div><div>维护长期记忆</div><div class="maintained">门控触发</div>
+      </div>
+    </section>
 
     <!-- MODULE 1 -->
     <section class="module" id="m1">
@@ -691,5 +1005,103 @@
 
   </main>
 </div>
+<script>
+  (() => {
+    const loopData = {
+      continuity: {
+        modules: ['instruction', 'short', 'working', 'summary'],
+        route: ['短期上下文', '工作状态', '摘要压缩', '恢复任务', '继续执行'],
+        explain: '执行时保留目标、进度和下一步；上下文变长后，用压缩后的交接状态继续完成原任务。'
+      },
+      learning: {
+        modules: ['instruction', 'short', 'long'],
+        route: ['交互与反馈', '价值判断', 'Extract Memories', 'memdir', '后续召回'],
+        explain: '执行后把真正具有未来价值的信号写入长期记忆；新会话只召回与当前问题明确相关的少量内容。'
+      },
+      maintenance: {
+        modules: ['instruction', 'long', 'dream'],
+        route: ['已有记忆与日志', '定向探索', '整合', '去重与纠错', '修剪并更新索引'],
+        explain: '后台周期性重组已有知识，控制重复、冲突和过时内容，避免长期记忆随着使用时间增长而失控。'
+      }
+    };
+
+    const route = document.getElementById('loop-route');
+    const explain = document.getElementById('loop-explain');
+    const nodes = [...document.querySelectorAll('.memory-node')];
+    const tabs = [...document.querySelectorAll('.loop-tab')];
+
+    function selectLoop(name) {
+      const item = loopData[name];
+      tabs.forEach(tab => tab.setAttribute('aria-pressed', String(tab.dataset.loop === name)));
+      nodes.forEach(node => {
+        const active = item.modules.includes(node.dataset.module);
+        node.classList.toggle('active', active);
+        node.classList.toggle('dim', !active);
+      });
+      route.innerHTML = item.route.map((stop, index) =>
+        `${index ? '<span class="route-arrow" aria-hidden="true">→</span>' : ''}<span class="route-stop">${stop}</span>`
+      ).join('');
+      explain.textContent = item.explain;
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => selectLoop(tab.dataset.loop)));
+    selectLoop('continuity');
+
+    const lifeSteps = [...document.querySelectorAll('.life-step')];
+    const lifeStatus = document.getElementById('life-status');
+    const lifeCopy = [
+      ['交互信号', '原始素材可以是用户纠正、明确偏好、项目决策或被确认有效的工作方式。'],
+      ['价值判断', '只保存未来仍可能有用、且无法从代码或 CLAUDE.md 直接获得的信息。'],
+      ['自动提取', '提取代理先查看已有记忆，判断新增、补充、替换或忽略，避免制造重复文件。'],
+      ['文件写入', '正文进入 user / feedback / project / reference 主题文件，MEMORY.md 只维护短索引。'],
+      ['动态召回', '后续请求只读取少量明确相关的记忆，并对陈旧的路径、函数和状态重新验证。'],
+      ['周期重塑', 'AutoDream 跨多次会话合并规律、修复冲突、删除过时信息并压缩索引。']
+    ];
+    let lifeIndex = 0;
+    let lifeTimer = null;
+    const playButton = document.getElementById('life-play');
+
+    function stopLife() {
+      if (lifeTimer) window.clearInterval(lifeTimer);
+      lifeTimer = null;
+      playButton.textContent = '播放';
+    }
+    function drawLife() {
+      lifeSteps.forEach((step, index) => step.classList.toggle('active', index === lifeIndex));
+      lifeStatus.innerHTML = `<strong>${lifeCopy[lifeIndex][0]}</strong> · ${lifeCopy[lifeIndex][1]}`;
+      document.getElementById('life-prev').disabled = lifeIndex === 0;
+      document.getElementById('life-next').disabled = lifeIndex === lifeSteps.length - 1;
+    }
+    playButton.addEventListener('click', () => {
+      if (lifeTimer) { stopLife(); return; }
+      if (lifeIndex === lifeSteps.length - 1) lifeIndex = 0;
+      drawLife();
+      playButton.textContent = '暂停';
+      lifeTimer = window.setInterval(() => {
+        if (lifeIndex < lifeSteps.length - 1) {
+          lifeIndex += 1;
+          drawLife();
+        } else {
+          stopLife();
+        }
+      }, 2100);
+    });
+    document.getElementById('life-prev').addEventListener('click', () => {
+      stopLife();
+      lifeIndex = Math.max(0, lifeIndex - 1);
+      drawLife();
+    });
+    document.getElementById('life-next').addEventListener('click', () => {
+      stopLife();
+      lifeIndex = Math.min(lifeSteps.length - 1, lifeIndex + 1);
+      drawLife();
+    });
+    document.getElementById('life-reset').addEventListener('click', () => {
+      stopLife();
+      lifeIndex = 0;
+      drawLife();
+    });
+    drawLife();
+  })();
+</script>
 </body>
 </html>
