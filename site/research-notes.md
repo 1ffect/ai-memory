@@ -1,5 +1,5 @@
 # 开源记忆机制案例研究
-核对日期：2026-09-17。以公开资料、代码与机制为研究对象，不限定助手或 Agent；暂不展开产品落地和验收。未运行这些项目，示意流程不是测评结果。
+核对日期：2026-09-18。以公开资料、代码与机制为研究对象，不限定助手或 Agent；暂不展开产品落地和验收。未运行这些项目，示意流程不是测评结果。
 ## 品牌与项目的对应边界
 - 千问：QwenLM/Qwen-Agent 官方文件 Memory 模块。
 - Kimi：MoonshotAI/kimi-cli 官方压缩与会话恢复实现。
@@ -366,3 +366,72 @@ langchain-ai / 项目官方仓库 · 旧记忆与新对话的整合
 - [官方概念与工作流](https://langchain-ai.github.io/langmem/concepts/conceptual_guide/)
 
 - [源码仓库](https://github.com/langchain-ai/langmem)
+
+## Cognee
+
+topoteretes / 开源项目仓库 · 知识图谱 + 向量 + 关系元数据
+
+**机制要点：** 通过 `remember` 摄取数据，以图谱、向量和关系元数据组织知识；`recall` 根据查询路由检索；`improve` 与 `forget` 分别承担后续整理和删除。会话可按 `session_id` 隔离，并提供会话蒸馏路径。
+
+**可借鉴什么：** 把记忆看成可组合的数据管道，而不只是一个向量集合；召回可以根据问题在多种结构之间选择。
+
+**理解边界：** 官方仓库公开的是框架能力；具体图模型、嵌入模型、图数据库和部署配置会改变结果。
+
+**来源：** [Cognee 官方仓库](https://github.com/topoteretes/cognee)
+
+## A-MEM
+
+AGI Research / 论文与开源实现 · Zettelkasten 式自组织记忆网络
+
+**机制要点：** 每条记忆不只保存文本，还生成关键词、标签和上下文描述；写入时根据语义邻居建立链接，并允许新记忆促使旧邻居演化。公开实现以 ChromaDB 承载向量检索。
+
+**可借鉴什么：** 写入不是简单追加，而是一次局部知识网络重组；适合研究“新经验如何改变旧记忆的组织方式”。
+
+**理解边界：** 论文原型与完整生产系统不同；自动演化也可能放大抽取错误，需要保留来源和审计路径。
+
+**来源：** [A-MEM 官方仓库](https://github.com/agiresearch/A-mem) · [论文](https://arxiv.org/abs/2502.12110)
+
+## Memobase
+
+memodb-io / 开源项目仓库 · 用户画像 + 事件时间线
+
+**机制要点：** 原始聊天先作为 Blob 进入缓冲区，再按 Token 阈值、空闲时间或手动 flush 触发处理，生成用户 Profile 与事件 Timeline；应用按预算获取可直接注入的用户上下文。
+
+**可借鉴什么：** 将“低延迟读取稳定画像”和“后台批量处理对话”分开；适合面向大量用户的画像型记忆。
+
+**理解边界：** 默认流程可在处理后删除原始 Blob；若需要审计或重新提取，应先设计单独的原始证据保留策略。
+
+**来源：** [Memobase 官方仓库](https://github.com/memodb-io/memobase)
+
+## Generative Agents
+
+Stanford / Google Research 论文配套仓库 · 记忆流 + 反思 + 计划
+
+**机制要点：** 观察持续进入 Memory Stream；读取时综合新近度、重要性和相关性；累积到一定程度后生成更高层反思，再参与后续计划与行为。
+
+**可借鉴什么：** 说明长期行为连续性不仅依赖检索，还依赖从零散经历中形成更高层解释。
+
+**理解边界：** 这是研究模拟环境，检索公式和行为效果不能直接外推到真实用户记忆产品。
+
+**来源：** [Generative Agents 官方仓库](https://github.com/joonspk-research/generative_agents) · [论文](https://arxiv.org/abs/2304.03442)
+
+## LazyMem
+
+匿名研究仓库 · 保留原始历史，查询时选择性构造
+
+**机制要点：** 不在写入时过早把所有历史压成固定事实；查询出现后，用稠密检索、BM25、RRF 与交叉编码器扩大候选，再恢复局部上下文，通过 KEEP / DROP 和查询相关压缩形成最终证据。
+
+**可借鉴什么：** 当未来问题未知时，延迟有损压缩可能比“预先猜测什么重要”更稳健。
+
+**理解边界：** 当前为匿名双盲研究发布，仓库未完整提供权重、数据、检查点与许可证；适合作为研究路线，不应视为成熟生产组件。
+
+**来源：** [LazyMem 研究仓库](https://github.com/allacnobug/LazyMem) · [论文](https://arxiv.org/abs/2607.22690)
+
+## 评测入口
+
+- [LoCoMo](https://github.com/snap-research/locomo)：长对话中的单跳、多跳、时间与开放域问题。
+- [LongMemEval](https://github.com/xiaowu0162/LongMemEval)：信息提取、多会话推理、知识更新、时间推理与拒答。
+- [MemoryAgentBench](https://arxiv.org/abs/2507.05257)：准确检索、测试时学习、长程理解与选择性遗忘。
+- [LongMemEval-V2](https://github.com/xiaowu0162/LongMemEval-V2)：真实 Agent 轨迹中的状态、流程经验、环境坑点与前提意识。
+
+横向比较时必须固定数据版本、骨干模型、检索与 Token 预算、Judge 和 Prompt，并同时记录写入延迟、查询延迟、成本与删除残留。公开排行榜本身不足以解释一个系统为什么成功或失败。
